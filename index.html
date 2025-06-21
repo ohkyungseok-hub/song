@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>노래 추천기 🎵</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    h1 { color: #2c3e50; text-align: center; }
+    label, select, input {
+      display: block;
+      margin-top: 15px;
+      font-size: 1em;
+    }
+    button {
+      margin-top: 20px;
+      padding: 12px 24px;
+      font-size: 1em;
+      background-color: #2ecc71;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover { background-color: #27ae60; }
+    #result {
+      margin-top: 30px;
+      font-size: 1.1em;
+      white-space: pre-line;
+    }
+    #loader {
+      display: none;
+      text-align: center;
+      font-size: 1.1em;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎤 오늘 부를 노래 추천받기</h1>
+
+  <form id="recommendationForm">
+    <label>출생년도: <input type="number" name="birthYear" required min="1900" max="2025"></label>
+    <label>성별:
+      <input type="radio" name="gender" value="남자" required> 남자
+      <input type="radio" name="gender" value="여자"> 여자
+    </label>
+    <label>현재 기분:
+      <select name="mood" required>
+        <option value="">-- 선택하세요 --</option>
+        <option value="신남">신남</option>
+        <option value="우울함">우울함</option>
+        <option value="춤추고 싶어">춤추고 싶어</option>
+        <option value="이별했어">이별했어</option>
+        <option value="짝사랑 중이야">짝사랑 중이야</option>
+        <option value="고음노래를 부르고 싶어">고음노래를 부르고 싶어</option>
+      </select>
+    </label>
+    <button type="submit">추천받기</button>
+  </form>
+
+  <div id="loader">🎶 AI가 선곡 중입니다...</div>
+  <div id="result"></div>
+
+  <script>
+    const loadingMessages = [
+      "플레이리스트를 조율 중...",
+      "가사를 분석하는 중...",
+      "리듬을 타고 있어요 🎶",
+      "추천할 곡을 골라보고 있어요..."
+    ];
+
+    document.getElementById("recommendationForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+
+      document.getElementById("result").innerHTML = "";
+      const loader = document.getElementById("loader");
+      loader.style.display = "block";
+      loader.textContent = loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+
+      const formData = new FormData(e.target);
+      const birthYear = formData.get("birthYear");
+      const gender = formData.get("gender");
+      const mood = formData.get("mood");
+
+      const apiUrl = `http://localhost:5002/recommend?s=${gender}&y=${birthYear}&m=${encodeURIComponent(mood)}`;
+
+      fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+  let parsed;
+
+  // ✅ 이미 JSON 형태일 경우 바로 사용
+  if (data.노래 && data.아티스트) {
+    parsed = data;
+  } else if (data.response || data.응답) {
+    try {
+      parsed = JSON.parse(data.response || data.응답);
+    } catch (e) {
+      document.getElementById("result").innerHTML =
+        `<p>❌ JSON 파싱 실패: ${e}</p><pre>${JSON.stringify(data)}</pre>`;
+      return;
+    }
+  } else {
+    document.getElementById("result").innerHTML =
+      `<p>❌ 잘못된 응답 형식: ${JSON.stringify(data)}</p>`;
+    return;
+  }
+
+  // 결과 출력
+  document.getElementById("result").innerHTML = `
+    <h2>🎵 추천 노래</h2>
+    <p><strong>노래 제목:</strong> ${parsed.노래}</p>
+    <p><strong>가수:</strong> ${parsed.아티스트}</p>
+
+    <p>▶️ <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(parsed.노래 + ' ' + parsed.아티스트)}" target="_blank">YouTube에서 검색하기</a></p>
+  `;
+})
+
+        .catch(error => {
+          loader.style.display = "none";
+          document.getElementById("result").innerHTML = `<p style="color:red;">❌ 에러: ${error}</p>`;
+        });
+    });
+  </script>
+
+</body>
+</html>
